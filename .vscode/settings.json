@@ -1,0 +1,36 @@
+{
+  // https://github.com/halcyon/asdf-java#asdf-java
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-17",
+      "path": "~/.asdf/installs/java/openjdk-17.0.2",
+      "default": true
+    },
+  ],
+  "cSpell.words": [
+    "dtos",
+    "fasterxml",
+    "github",
+    "hamcrest",
+    "hashid",
+    "Hashids",
+    "instanceof",
+    "jooq",
+    "jsonwebtoken",
+    "Jwts",
+    "servlet",
+    "Servlet",
+    "springboot",
+    "springframework",
+    "throyer",
+    "zustand"
+  ],
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "explorer.compactFolders": true,
+  "coverage-gutters.showLineCoverage": true,
+  "coverage-gutters.showRulerCoverage": true,
+  "coverage-gutters.coverageFileNames": [
+    "jacoco.xml"
+  ],
+  "java.compile.nullAnalysis.mode": "automatic"
+}

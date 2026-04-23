@@ -1,0 +1,6 @@
+.docker/.env
+.docker/.volumes
+Vendas.iml
+.idea
+*.DS_Store
+web/.npm/
