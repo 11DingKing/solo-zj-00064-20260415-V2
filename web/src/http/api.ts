@@ -10,86 +10,67 @@ export const api = axios.create({
   baseURL: ENV.BASE_URL,
 });
 
-api.interceptors.request.use(async (configs) => {
+let refreshTokenPromise: Promise<string> | null = null;
+
+const refreshToken = async (): Promise<string> => {
   const { session, set: setSession } = useSession.getState();
 
-  if (session) {
-    if (session.isExpired()) {
-      try {
-        const { data: sessionResponse } = await axios.post(
-          `${ENV.BASE_URL}/v1/authentication/refresh`,
-          {
-            refreshToken: session.refreshToken,
-          },
-        );
-        setSession(sessionResponse);
-      } catch (error) {
-        setSession(null);
-      }
-    }
-
-    configs.headers = {
-      ...configs.headers,
-      Authorization: `Bearer ${session.accessToken}`,
-    };
+  if (!session) {
+    throw new Error("No session available");
   }
 
-  return configs;
-});
-}
+  try {
+    const response = await axios.post(
+      `${ENV.BASE_URL}/api/authentication/refresh`,
+      {
+        refreshToken: session.refreshToken,
+      },
+    );
 
-  const response = await axios.post(`${ENV.BASE_URL}/api/authentication/refresh`, {
-    refreshToken: session.refreshToken
-  });
+    const newSession = response.data;
+    setSession(newSession);
 
-  const newSession = response.data;
-  setSession(newSession);
-  
-  return newSession.accessToken;
+    return newSession.accessToken;
+  } catch (error) {
+    const { set: setSession } = useSession.getState();
+    setSession(null);
+    throw error;
+  }
+};
+
+const getRefreshTokenPromise = (): Promise<string> => {
+  if (!refreshTokenPromise) {
+    refreshTokenPromise = refreshToken().finally(() => {
+      refreshTokenPromise = null;
+    });
+  }
+  return refreshTokenPromise;
 };
 
 const handleTokenExpired = async (
   error: AxiosError,
-  instance: AxiosInstance
+  instance: AxiosInstance,
 ): Promise<unknown> => {
-  const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-  
+  const originalRequest = error.config as InternalAxiosRequestConfig & {
+    _retry?: boolean;
+  };
+
   if (originalRequest._retry) {
     return Promise.reject(error);
   }
 
-  if (isRefreshing) {
-    return new Promise((resolve, reject) => {
-      failedQueue.push({ resolve, reject });
-    })
-      .then((token) => {
-        if (token && originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-        }
-        return instance(originalRequest);
-      })
-      .catch((err) => Promise.reject(err));
-  }
-
   originalRequest._retry = true;
-  isRefreshing = true;
 
   try {
-    const newAccessToken = await refreshToken();
-    processQueue(null, newAccessToken);
-    
+    const newAccessToken = await getRefreshTokenPromise();
+
     if (originalRequest.headers) {
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
     }
-    
+
     return instance(originalRequest);
   } catch (refreshError) {
-    processQueue(refreshError, null);
-    const { set: setSession } = useSession.getState();
-    setSession(null);
     return Promise.reject(refreshError);
-  } finally {
-    isRefreshing = false;
   }
 };
 
@@ -98,19 +79,12 @@ api.interceptors.request.use(async (config) => {
 
   if (session) {
     if (session.isExpired()) {
-      try {        
-        const { data: sessionResponse } = await axios.post(`${ENV.BASE_URL}/api/authentication/refresh`, {
-          refreshToken: session.refreshToken
-        });
-        setSession(sessionResponse);
-        
-        const newSession = useSession.getState().session;
-        if (newSession) {
-          config.headers = {
-            ...config.headers,
-            'Authorization': `Bearer ${newSession.accessToken}`,
-          };
-        }
+      try {
+        const newAccessToken = await getRefreshTokenPromise();
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${newAccessToken}`,
+        };
         return config;
       } catch (error) {
         setSession(null);
@@ -120,7 +94,7 @@ api.interceptors.request.use(async (config) => {
 
     config.headers = {
       ...config.headers,
-      'Authorization': `Bearer ${session.accessToken}`,
+      Authorization: `Bearer ${session.accessToken}`,
     };
   }
 
@@ -134,5 +108,5 @@ api.interceptors.response.use(
       return handleTokenExpired(error, api);
     }
     return Promise.reject(error);
-  }
+  },
 );

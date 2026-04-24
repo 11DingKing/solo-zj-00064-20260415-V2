@@ -107,10 +107,12 @@ public class CreateAuthenticationService {
     var newRefreshTokenCode = randomUUID().toString();
     var newRefreshTokenExpiresAt = now.plusDays(REFRESH_TOKEN_EXPIRATION_IN_DAYS);
 
+    long refreshTokenTtlSeconds = REFRESH_TOKEN_EXPIRATION_IN_DAYS * 24 * 60 * 60;
+    redisService.addRefreshTokenToBlacklist(refreshTokenCode, refreshTokenTtlSeconds);
     redisService.deleteRefreshToken(refreshTokenCode);
     redisService.saveRefreshToken(user.getId(), newRefreshTokenCode, newRefreshTokenExpiresAt);
 
-    log.info("User {} refreshed token, old token invalidated", user.getEmail());
+    log.info("User {} refreshed token, old token blacklisted and invalidated", user.getEmail());
 
     return new Authentication(
       new UserInformation(user),
