@@ -28,7 +28,7 @@ public class LogoutService {
                     long remainingSeconds = JWT.getRemainingSeconds(cleanToken, TOKEN_SECRET);
                     if (remainingSeconds > 0) {
                         redisService.addToBlacklist(jti, remainingSeconds);
-                        log.info("Token added to blacklist: {}, remaining TTL: {}s", jti, remainingSeconds);
+                        log.info("Access token added to blacklist: {}, remaining TTL: {}s", jti, remainingSeconds);
                     }
                 });
             }
@@ -36,8 +36,9 @@ public class LogoutService {
 
         if (nonNull(authorized) && nonNull(authorized.getId())) {
             Long userId = authorized.getId();
+            redisService.addAllUserRefreshTokensToBlacklist(userId);
             redisService.deleteAllRefreshTokens(userId);
-            log.info("All refresh tokens deleted for user: {}", userId);
+            log.info("User {} logged out, all refresh tokens blacklisted and deleted", userId);
         }
     }
 

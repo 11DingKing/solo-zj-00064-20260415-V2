@@ -6,7 +6,6 @@ import { SessionStore } from "./session-store.types";
 export const useSession = create<SessionStore>((set) => ({
   session: null,
   set: (session) => {
-
     if (!session) {
       return set((old) => ({ ...old, session }));
     }
@@ -17,8 +16,8 @@ export const useSession = create<SessionStore>((set) => ({
       session: {
         ...session,
         expiresAt,
-        isExpired: () => DateTime.fromJSDate(expiresAt) > DateTime.now(),
-      }
-    }))
-  }
+        isExpired: () => DateTime.fromJSDate(expiresAt) <= DateTime.now(),
+      },
+    }));
+  },
 }));

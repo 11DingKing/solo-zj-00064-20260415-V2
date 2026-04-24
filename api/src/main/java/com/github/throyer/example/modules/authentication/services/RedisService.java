@@ -21,6 +21,7 @@ public class RedisService {
     private static final String REFRESH_TOKEN_PREFIX = "refresh_token:";
     private static final String USER_REFRESH_TOKENS_PREFIX = "user_refresh_tokens:";
     private static final String BLACKLIST_PREFIX = "blacklist:";
+    private static final String REFRESH_TOKEN_BLACKLIST_PREFIX = "refresh_blacklist:";
     private static final String RATE_LIMIT_PREFIX = "rate_limit:";
     
     private static final String FIELD_USER_ID = "user_id";
@@ -201,5 +202,27 @@ public class RedisService {
     public Set<String> getAllRefreshTokenCodes(Long userId) {
         String key = USER_REFRESH_TOKENS_PREFIX + userId;
         return stringRedisTemplate.opsForSet().members(key);
+    }
+
+    public void addRefreshTokenToBlacklist(String tokenCode, long ttlSeconds) {
+        String key = REFRESH_TOKEN_BLACKLIST_PREFIX + tokenCode;
+        stringRedisTemplate.opsForValue().set(key, "true", ttlSeconds, TimeUnit.SECONDS);
+        log.info("Added refresh token to blacklist: {}, TTL: {}s", tokenCode, ttlSeconds);
+    }
+
+    public boolean isRefreshTokenBlacklisted(String tokenCode) {
+        String key = REFRESH_TOKEN_BLACKLIST_PREFIX + tokenCode;
+        Boolean exists = stringRedisTemplate.hasKey(key);
+        return Boolean.TRUE.equals(exists);
+    }
+
+    public void addAllUserRefreshTokensToBlacklist(Long userId) {
+        Set<String> tokenCodes = getAllRefreshTokenCodes(userId);
+        if (tokenCodes != null && !tokenCodes.isEmpty()) {
+            long ttlSeconds = REFRESH_TOKEN_EXPIRATION_IN_DAYS * 24 * 60 * 60;
+            for (String tokenCode : tokenCodes) {
+                addRefreshTokenToBlacklist(tokenCode, ttlSeconds);
+            }
+        }
     }
 }

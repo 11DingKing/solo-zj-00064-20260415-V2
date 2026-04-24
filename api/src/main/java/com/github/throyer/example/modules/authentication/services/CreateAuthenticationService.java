@@ -74,6 +74,11 @@ public class CreateAuthenticationService {
   public Authentication create(CreateAuthenticationWithRefreshToken body) {
     var refreshTokenCode = body.getRefreshToken();
     
+    if (redisService.isRefreshTokenBlacklisted(refreshTokenCode)) {
+      log.warn("Attempt to use blacklisted refresh token: {}", refreshTokenCode);
+      throw forbidden(message(REFRESH_SESSION_ERROR_MESSAGE));
+    }
+    
     var userIdOpt = redisService.getUserIdByRefreshToken(refreshTokenCode);
     if (userIdOpt.isEmpty()) {
       throw forbidden(message(REFRESH_SESSION_ERROR_MESSAGE));
